@@ -2,14 +2,47 @@ name: 🎮 OptikLink-Keep
 
 on:
   schedule:
-    - cron: '59 1 */3 * *'
+    - cron: '59 1 * * *'
   workflow_dispatch:
 
 jobs:
+  check:
+    name: ⏳ 判断是否执行
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+
+    steps:
+      - id: check
+        run: |
+          START="2026-05-08"
+          TODAY=$(date +%Y-%m-%d)
+
+          echo "📅 今天: $TODAY | 起始: $START"
+
+          start_ts=$(date -d "$START" +%s)
+          today_ts=$(date -d "$TODAY" +%s)
+
+          diff_days=$(( (today_ts - start_ts) / 86400 ))
+
+          if [ $diff_days -lt 0 ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "⛔ 未到开始日期"
+          elif [ $((diff_days % 3)) -ne 0 ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "⏭️ 非执行日"
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "✅ 执行"
+          fi
+
   keepalive:
     name: 🔄 执行保活
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
       - name: 📥 拉取代码
         uses: actions/checkout@v4
